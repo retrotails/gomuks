@@ -92,7 +92,7 @@ func (msg *UIMessage) GetEvent() *muksevt.Event {
 }
 
 const DateFormat = "January _2, 2006"
-const TimeFormat = "15:04:05"
+const TimeFormat = "15:04"
 
 func newUIMessage(evt *muksevt.Event, displayname string, renderer MessageRenderer) *UIMessage {
 	msgContent := evt.Content.AsMessage()
@@ -164,7 +164,7 @@ func unixToTime(unix int64) time.Time {
 func (msg *UIMessage) Sender() string {
 	switch msg.State {
 	case muksevt.StateLocalEcho:
-		return "Sending..."
+		return "(...)"
 	case muksevt.StateSendFail:
 		return "Error"
 	}

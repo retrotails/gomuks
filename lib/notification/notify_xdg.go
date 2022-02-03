@@ -80,7 +80,5 @@ func Send(title, text string, critical, sound bool) error {
 			_ = exec.Command(audioCommand, audioFile).Run()
 		}()
 	}
-	// phone notification light
-	os.WriteFile("/sys/class/leds/red:indicator/brightness", []byte("1"), 0777)
 	return exec.Command(notifySendPath, args...).Run()
 }

@@ -54,6 +54,7 @@ type UserPreferences struct {
 	DisableNotifications bool `yaml:"disable_notifications"`
 	DisableShowURLs      bool `yaml:"disable_show_urls"`
 	AltEnterToSend       bool `yaml:"alt_enter_to_send"`
+	RoomWidth            int  `yaml:"room_width"`
 }
 
 // Config contains the main config of gomuks.

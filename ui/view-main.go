@@ -75,8 +75,14 @@ func (ui *GomuksUI) NewMainView() mauview.Component {
 	mainView.roomList = NewRoomList(mainView)
 	mainView.cmdProcessor = NewCommandProcessor(mainView)
 
+	var RoomWidth = 25
+	if mainView.config.Preferences.RoomWidth >= 8 &&
+	   mainView.config.Preferences.RoomWidth <= 32 {
+		RoomWidth = mainView.config.Preferences.RoomWidth
+	}
+
 	mainView.flex.
-		AddFixedComponent(mainView.roomList, 25).
+		AddFixedComponent(mainView.roomList, RoomWidth).
 		AddFixedComponent(widget.NewBorder(), 1).
 		AddProportionalComponent(mainView.roomView, 1)
 	mainView.BumpFocus(nil)

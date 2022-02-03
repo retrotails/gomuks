@@ -775,6 +775,22 @@ func cmdToggle(cmd *Command) {
 	go cmd.Matrix.SendPreferencesToMatrix()
 }
 
+func cmdRoomWidth(cmd *Command) {
+	if len(cmd.Args) != 1 {
+		cmd.Reply("Usage: /roomWidth <width>", cmd.Command)
+	} else {
+		if i, err := strconv.Atoi(cmd.Args[0]); err == nil {
+			if i >= 8 && i <= 32 {
+				cmd.Config.Preferences.RoomWidth = i
+				cmd.Reply("Restart gomuks for changes to apply.")
+			} else {
+				cmd.Reply("Invalid size (8-32)")
+			}
+		}
+	}
+}
+
+
 func cmdLogout(cmd *Command) {
 	cmd.Matrix.Logout()
 }

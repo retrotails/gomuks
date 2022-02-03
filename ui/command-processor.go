@@ -138,6 +138,7 @@ func NewCommandProcessor(parent *MainView) *CommandProcessor {
 			"ban":        cmdBan,
 			"unban":      cmdUnban,
 			"toggle":     cmdToggle,
+			"roomwidth":  cmdRoomWidth,
 			"logout":     cmdLogout,
 			"accept":     cmdAccept,
 			"reject":     cmdReject,

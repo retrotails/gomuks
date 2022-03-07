@@ -17,7 +17,9 @@
 package config
 
 import (
+	_ "embed"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -28,6 +30,9 @@ import (
 	"maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/id"
 	"maunium.net/go/mautrix/pushrules"
+
+	"github.com/3nprob/cbind"
+	"maunium.net/go/tcell"
 
 	"maunium.net/go/gomuks/debug"
 	"maunium.net/go/gomuks/matrix/rooms"
@@ -55,6 +60,26 @@ type UserPreferences struct {
 	DisableShowURLs      bool `yaml:"disable_show_urls"`
 	AltEnterToSend       bool `yaml:"alt_enter_to_send"`
 	RoomWidth            int  `yaml:"room_width"`
+}
+
+type Keybind struct {
+	Mod tcell.ModMask
+	Key tcell.Key
+	Ch  rune
+}
+
+type ParsedKeybindings struct {
+	Main   map[Keybind]string
+	Room   map[Keybind]string
+	Modal  map[Keybind]string
+	Visual map[Keybind]string
+}
+
+type RawKeybindings struct {
+	Main   map[string]string `yaml:"main,omitempty"`
+	Room   map[string]string `yaml:"room,omitempty"`
+	Modal  map[string]string `yaml:"modal,omitempty"`
+	Visual map[string]string `yaml:"visual,omitempty"`
 }
 
 // Config contains the main config of gomuks.
@@ -86,6 +111,7 @@ type Config struct {
 	AuthCache   AuthCache              `yaml:"-"`
 	Rooms       *rooms.RoomCache       `yaml:"-"`
 	PushRules   *pushrules.PushRuleset `yaml:"-"`
+	Keybindings ParsedKeybindings      `yaml:"-"`
 
 	nosave bool
 }
@@ -153,6 +179,7 @@ func (config *Config) LoadAll() {
 	config.LoadAuthCache()
 	config.LoadPushRules()
 	config.LoadPreferences()
+	config.LoadKeybindings()
 	err := config.Rooms.LoadList()
 	if err != nil {
 		panic(err)
@@ -188,6 +215,49 @@ func (config *Config) LoadPreferences() {
 
 func (config *Config) SavePreferences() {
 	config.save("user preferences", config.CacheDir, "preferences.yaml", &config.Preferences)
+}
+
+//go:embed keybindings.yaml
+var DefaultKeybindings string
+
+func parseKeybindings(input map[string]string) (output map[Keybind]string) {
+	output = make(map[Keybind]string, len(input))
+	for shortcut, action := range input {
+		mod, key, ch, err := cbind.Decode(shortcut)
+		if err != nil {
+			panic(fmt.Errorf("failed to parse keybinding %s -> %s: %w", shortcut, action, err))
+		}
+		// TODO find out if other keys are parsed incorrectly like this
+		if key == tcell.KeyEscape {
+			ch = 0
+		}
+		parsedShortcut := Keybind{
+			Mod: mod,
+			Key: key,
+			Ch:  ch,
+		}
+		output[parsedShortcut] = action
+	}
+	return
+}
+
+func (config *Config) LoadKeybindings() {
+	var inputConfig RawKeybindings
+
+	err := yaml.Unmarshal([]byte(DefaultKeybindings), &inputConfig)
+	if err != nil {
+		panic(fmt.Errorf("failed to unmarshal default keybindings: %w", err))
+	}
+	config.load("keybindings", config.Dir, "keybindings.yaml", &inputConfig)
+
+	config.Keybindings.Main = parseKeybindings(inputConfig.Main)
+	config.Keybindings.Room = parseKeybindings(inputConfig.Room)
+	config.Keybindings.Modal = parseKeybindings(inputConfig.Modal)
+	config.Keybindings.Visual = parseKeybindings(inputConfig.Visual)
+}
+
+func (config *Config) SaveKeybindings() {
+	config.save("keybindings", config.Dir, "keybindings.yaml", &config.Keybindings)
 }
 
 func (config *Config) LoadAuthCache() {

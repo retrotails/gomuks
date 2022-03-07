@@ -1,9 +1,10 @@
 package ui
 
 import (
+	"maunium.net/go/mauview"
 	"maunium.net/go/tcell"
 
-	"maunium.net/go/mauview"
+	"maunium.net/go/gomuks/config"
 )
 
 const helpText = `# General
@@ -12,6 +13,7 @@ const helpText = `# General
 /clearcache     - Clear cache and quit gomuks.
 /logout         - Log out of Matrix.
 /toggle <thing> - Temporary command to toggle various UI features.
+                  Run /toggle without arguments to see the list of toggles.
 
 # Media
 /download [path] - Downloads file from selected message.
@@ -94,7 +96,13 @@ func NewHelpModal(parent *MainView) *HelpModal {
 }
 
 func (hm *HelpModal) OnKeyEvent(event mauview.KeyEvent) bool {
-	if event.Key() == tcell.KeyEscape || event.Rune() == 'q' {
+	kb := config.Keybind{
+		Key: event.Key(),
+		Ch:  event.Rune(),
+		Mod: event.Modifiers(),
+	}
+	// TODO unhardcode q
+	if hm.parent.config.Keybindings.Modal[kb] == "cancel" || event.Rune() == 'q' {
 		hm.parent.HideModal()
 		return true
 	}

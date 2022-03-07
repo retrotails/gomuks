@@ -92,6 +92,7 @@ func NewCommandProcessor(parent *MainView) *CommandProcessor {
 			"mstate":     {"msetstate"},
 			"rb":         {"rainbow"},
 			"rbme":       {"rainbowme"},
+			"rbn":        {"rainbownotice"},
 			"myroomnick": {"roomnick"},
 			"createroom": {"create"},
 			"dm":         {"pm"},
@@ -146,6 +147,7 @@ func NewCommandProcessor(parent *MainView) *CommandProcessor {
 			"redact":     cmdRedact,
 			"react":      cmdReact,
 			"edit":       cmdEdit,
+			"external":   cmdExternalEditor,
 			"download":   cmdDownload,
 			"upload":     cmdUpload,
 			"open":       cmdOpen,
@@ -166,6 +168,8 @@ func NewCommandProcessor(parent *MainView) *CommandProcessor {
 			"hprof":      cmdHeapProfile,
 			"cprof":      cmdCPUProfile,
 			"trace":      cmdTrace,
+
+			"rainbownotice": cmdRainbowNotice,
 
 			"fingerprint":   cmdFingerprint,
 			"devices":       cmdDevices,

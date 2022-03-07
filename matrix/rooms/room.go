@@ -476,9 +476,6 @@ func (room *Room) GetTopic() string {
 		if topicEvt != nil {
 			room.topicCache = topicEvt.Content.AsTopic().Topic
 		}
-		if room.topicCache == "" {
-			room.topicCache = room.NameCache
-		}
 	}
 	return room.topicCache
 }

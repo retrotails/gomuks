@@ -37,7 +37,7 @@ import (
 	"unicode"
 
 	"github.com/lucasb-eyer/go-colorful"
-	"github.com/russross/blackfriday/v2"
+	"github.com/yuin/goldmark"
 
 	"maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/event"
@@ -45,6 +45,7 @@ import (
 	"maunium.net/go/mautrix/id"
 
 	"maunium.net/go/gomuks/debug"
+	"maunium.net/go/gomuks/lib/filepicker"
 )
 
 func cmdMe(cmd *Command) {
@@ -85,21 +86,22 @@ var rainbow = GradientTable{
 	{colorful.LinearRgb(1, 0, 0.5), 11 / 11.0},
 }
 
+var rainbowMark = goldmark.New(format.Extensions, format.HTMLOptions, goldmark.WithExtensions(ExtensionRainbow))
+
 // TODO this command definitely belongs in a plugin once we have a plugin system.
 func makeRainbow(cmd *Command, msgtype event.MessageType) {
 	text := strings.Join(cmd.Args, " ")
 
-	render := NewRainbowRenderer(blackfriday.NewHTMLRenderer(blackfriday.HTMLRendererParameters{
-		Flags: blackfriday.UseXHTML,
-	}))
-	htmlBodyBytes := blackfriday.Run([]byte(text), format.Extensions, blackfriday.WithRenderer(render))
-	htmlBody := strings.TrimRight(string(htmlBodyBytes), "\n")
+	var buf strings.Builder
+	_ = rainbowMark.Convert([]byte(text), &buf)
+
+	htmlBody := strings.TrimRight(buf.String(), "\n")
 	htmlBody = format.AntiParagraphRegex.ReplaceAllString(htmlBody, "$1")
 	text = format.HTMLToText(htmlBody)
 
-	count := strings.Count(htmlBody, render.ColorID)
+	count := strings.Count(htmlBody, defaultRB.ColorID)
 	i := -1
-	htmlBody = regexp.MustCompile(render.ColorID).ReplaceAllStringFunc(htmlBody, func(match string) string {
+	htmlBody = regexp.MustCompile(defaultRB.ColorID).ReplaceAllStringFunc(htmlBody, func(match string) string {
 		i++
 		return rainbow.GetInterpolatedColorFor(float64(i) / float64(count)).Hex()
 	})
@@ -257,15 +259,28 @@ func cmdDownload(cmd *Command) {
 }
 
 func cmdUpload(cmd *Command) {
+	var path string
+	var err error
 	if len(cmd.Args) == 0 {
-		cmd.Reply("Usage: /upload <file>")
-		return
-	}
-
-	path, err := filepath.Abs(cmd.RawArgs)
-	if err != nil {
-		cmd.Reply("Failed to get absolute path: %v", err)
-		return
+		if filepicker.IsSupported() {
+			path, err = filepicker.Open()
+			if err != nil {
+				cmd.Reply("Failed to open file picker: %v", err)
+				return
+			} else if len(path) == 0 {
+				cmd.Reply("File picking cancelled")
+				return
+			}
+		} else {
+			cmd.Reply("Usage: /upload <file>")
+			return
+		}
+	} else {
+		path, err = filepath.Abs(cmd.RawArgs)
+		if err != nil {
+			cmd.Reply("Failed to get absolute path: %v", err)
+			return
+		}
 	}
 
 	go cmd.Room.SendMessageMedia(path)
@@ -761,6 +776,20 @@ func (stm SimpleToggleMessage) Name() string {
 	return string(unicode.ToUpper(rune(stm[0]))) + string(stm[1:])
 }
 
+type InvertedToggleMessage string
+
+func (itm InvertedToggleMessage) Format(state bool) string {
+	if state {
+		return "Enabled " + string(itm)
+	} else {
+		return "Disabled " + string(itm)
+	}
+}
+
+func (itm InvertedToggleMessage) Name() string {
+	return string(unicode.ToUpper(rune(itm[0]))) + string(itm[1:])
+}
+
 type NewlineKeybindMessage string
 
 func (nkm NewlineKeybindMessage) Format(state bool) string {
@@ -789,6 +818,7 @@ var toggleMsg = map[string]ToggleMessage{
 	"notifications": SimpleToggleMessage("desktop notifications"),
 	"unverified":    SimpleToggleMessage("sending messages to unverified devices"),
 	"showurls":      SimpleToggleMessage("show URLs in text format"),
+	"inlineurls":    InvertedToggleMessage("use fancy terminal features to render URLs inside text"),
 	"newline":       NewlineKeybindMessage("should <alt+enter> make a new line or send the message"),
 }
 
@@ -836,6 +866,16 @@ func cmdToggle(cmd *Command) {
 			val = &cmd.Config.SendToVerifiedOnly
 		case "showurls":
 			val = &cmd.Config.Preferences.DisableShowURLs
+		case "inlineurls":
+			switch cmd.Config.Preferences.InlineURLMode {
+			case "enable":
+				cmd.Config.Preferences.InlineURLMode = "disable"
+				cmd.Reply("Force-disabled using fancy terminal features to render URLs inside text. Restart gomuks to apply changes.")
+			default:
+				cmd.Config.Preferences.InlineURLMode = "enable"
+				cmd.Reply("Force-enabled using fancy terminal features to render URLs inside text. Restart gomuks to apply changes.")
+			}
+			continue
 		case "newline":
 			val = &cmd.Config.Preferences.AltEnterToSend
 		default:

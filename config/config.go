@@ -23,16 +23,17 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 
 	"maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/id"
 	"maunium.net/go/mautrix/pushrules"
 
-	"github.com/3nprob/cbind"
-	"maunium.net/go/tcell"
+	"go.mau.fi/cbind"
+	"go.mau.fi/tcell"
 
 	"maunium.net/go/gomuks/debug"
 	"maunium.net/go/gomuks/matrix/rooms"
@@ -60,6 +61,24 @@ type UserPreferences struct {
 	DisableShowURLs      bool `yaml:"disable_show_urls"`
 	AltEnterToSend       bool `yaml:"alt_enter_to_send"`
 	RoomWidth            int  `yaml:"room_width"`
+
+	InlineURLMode string `yaml:"inline_url_mode"`
+}
+
+var InlineURLsProbablySupported bool
+
+func init() {
+	vteVersion, _ := strconv.Atoi(os.Getenv("VTE_VERSION"))
+	term := os.Getenv("TERM")
+	// Enable inline URLs by default on VTE 0.50.0+
+	InlineURLsProbablySupported = vteVersion > 5000 ||
+		os.Getenv("TERM_PROGRAM") == "iTerm.app" ||
+		term == "foot" ||
+		term == "xterm-kitty"
+}
+
+func (up *UserPreferences) EnableInlineURLs() bool {
+	return up.InlineURLMode == "enable" || (InlineURLsProbablySupported && up.InlineURLMode != "disable")
 }
 
 type Keybind struct {
@@ -188,7 +207,10 @@ func (config *Config) LoadAll() {
 
 // Load loads the config from config.yaml in the directory given to the config struct.
 func (config *Config) Load() {
-	config.load("config", config.Dir, "config.yaml", config)
+	err := config.load("config", config.Dir, "config.yaml", config)
+	if err != nil {
+		panic(fmt.Errorf("failed to load config.yaml: %w", err))
+	}
 	config.CreateCacheDirs()
 }
 
@@ -210,7 +232,7 @@ func (config *Config) Save() {
 }
 
 func (config *Config) LoadPreferences() {
-	config.load("user preferences", config.CacheDir, "preferences.yaml", &config.Preferences)
+	_ = config.load("user preferences", config.CacheDir, "preferences.yaml", &config.Preferences)
 }
 
 func (config *Config) SavePreferences() {
@@ -248,7 +270,7 @@ func (config *Config) LoadKeybindings() {
 	if err != nil {
 		panic(fmt.Errorf("failed to unmarshal default keybindings: %w", err))
 	}
-	config.load("keybindings", config.Dir, "keybindings.yaml", &inputConfig)
+	_ = config.load("keybindings", config.Dir, "keybindings.yaml", &inputConfig)
 
 	config.Keybindings.Main = parseKeybindings(inputConfig.Main)
 	config.Keybindings.Room = parseKeybindings(inputConfig.Room)
@@ -261,7 +283,10 @@ func (config *Config) SaveKeybindings() {
 }
 
 func (config *Config) LoadAuthCache() {
-	config.load("auth cache", config.CacheDir, "auth-cache.yaml", &config.AuthCache)
+	err := config.load("auth cache", config.CacheDir, "auth-cache.yaml", &config.AuthCache)
+	if err != nil {
+		panic(fmt.Errorf("failed to load auth-cache.yaml: %w", err))
+	}
 }
 
 func (config *Config) SaveAuthCache() {
@@ -269,7 +294,8 @@ func (config *Config) SaveAuthCache() {
 }
 
 func (config *Config) LoadPushRules() {
-	config.load("push rules", config.CacheDir, "pushrules.json", &config.PushRules)
+	_ = config.load("push rules", config.CacheDir, "pushrules.json", &config.PushRules)
+
 }
 
 func (config *Config) SavePushRules() {
@@ -279,21 +305,21 @@ func (config *Config) SavePushRules() {
 	config.save("push rules", config.CacheDir, "pushrules.json", &config.PushRules)
 }
 
-func (config *Config) load(name, dir, file string, target interface{}) {
+func (config *Config) load(name, dir, file string, target interface{}) error {
 	err := os.MkdirAll(dir, 0700)
 	if err != nil {
 		debug.Print("Failed to create", dir)
-		panic(err)
+		return err
 	}
 
 	path := filepath.Join(dir, file)
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return
+			return nil
 		}
 		debug.Print("Failed to read", name, "from", path)
-		panic(err)
+		return err
 	}
 
 	if strings.HasSuffix(file, ".yaml") {
@@ -303,8 +329,9 @@ func (config *Config) load(name, dir, file string, target interface{}) {
 	}
 	if err != nil {
 		debug.Print("Failed to parse", name, "at", path)
-		panic(err)
+		return err
 	}
+	return nil
 }
 
 func (config *Config) save(name, dir, file string, source interface{}) {

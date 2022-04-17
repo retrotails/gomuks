@@ -24,7 +24,7 @@ import (
 
 	"maunium.net/go/gomuks/config"
 	"maunium.net/go/gomuks/debug"
-	"maunium.net/go/gomuks/interface"
+	ifc "maunium.net/go/gomuks/interface"
 )
 
 type gomuksPointerContainer struct {
@@ -122,6 +122,7 @@ func NewCommandProcessor(parent *MainView) *CommandProcessor {
 			"import":        autocompleteFile,
 			"export":        autocompleteFile,
 			"export-room":   autocompleteFile,
+			"toggle":        autocompleteToggle,
 		},
 		commands: map[string]CommandHandler{
 			"unknown-command": cmdUnknownCommand,

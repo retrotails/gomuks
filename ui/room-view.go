@@ -27,13 +27,15 @@ import (
 	"github.com/mattn/go-runewidth"
 	"github.com/zyedidia/clipboard"
 
-	"maunium.net/go/mauview"
-	"maunium.net/go/tcell"
+	"go.mau.fi/mauview"
+	"go.mau.fi/tcell"
 
 	"maunium.net/go/mautrix"
 	"maunium.net/go/mautrix/crypto/attachment"
 	"maunium.net/go/mautrix/event"
+	"maunium.net/go/mautrix/format"
 	"maunium.net/go/mautrix/id"
+	"maunium.net/go/mautrix/util/variationselector"
 
 	"maunium.net/go/gomuks/config"
 	"maunium.net/go/gomuks/debug"
@@ -210,10 +212,7 @@ func (view *RoomView) OnSelect(message *messages.UIMessage) {
 			go view.Download(msg.URL, msg.File, path, view.selectReason == SelectOpen)
 		}
 	case SelectCopy:
-		msg, ok := message.Renderer.(*messages.TextMessage)
-		if ok {
-			go view.CopyToClipboard(msg.PlainText(), view.selectContent)
-		}
+		go view.CopyToClipboard(message.Renderer.PlainText(), view.selectContent)
 	}
 	view.selecting = false
 	view.selectContent = ""
@@ -422,6 +421,18 @@ func (view *RoomView) SetTyping(users []id.UserID) {
 	}
 }
 
+var editHTMLParser = &format.HTMLParser{
+	PillConverter: func(displayname, mxid, eventID string, ctx format.Context) string {
+		if len(eventID) > 0 {
+			return fmt.Sprintf(`[%s](https://matrix.to/#/%s/%s)`, displayname, mxid, eventID)
+		} else {
+			return fmt.Sprintf(`[%s](https://matrix.to/#/%s)`, displayname, mxid)
+		}
+	},
+	Newline:        "\n",
+	HorizontalLine: "\n---\n",
+}
+
 func (view *RoomView) SetEditing(evt *muksevt.Event) {
 	if evt == nil {
 		view.editing = nil
@@ -439,8 +450,14 @@ func (view *RoomView) SetEditing(evt *muksevt.Event) {
 			// This feels kind of dangerous, but I think it works
 			msgContent = view.editing.Gomuks.Edits[len(view.editing.Gomuks.Edits)-1].Content.AsMessage().NewContent
 		}
-		// TODO this should parse HTML instead of just using the plaintext body
 		text := msgContent.Body
+		if len(msgContent.FormattedBody) > 0 && (!view.config.Preferences.DisableMarkdown || !view.config.Preferences.DisableHTML) {
+			if view.config.Preferences.DisableMarkdown {
+				text = msgContent.FormattedBody
+			} else {
+				text = editHTMLParser.Parse(msgContent.FormattedBody, make(format.Context))
+			}
+		}
 		if msgContent.MsgType == event.MsgEmote {
 			text = "/me " + text
 		}
@@ -734,6 +751,10 @@ func (view *RoomView) Redact(eventID id.EventID, reason string) {
 
 func (view *RoomView) SendReaction(eventID id.EventID, reaction string) {
 	defer debug.Recover()
+	if !view.config.Preferences.DisableEmojis {
+		reaction = emoji.Sprint(reaction)
+	}
+	reaction = variationselector.Add(strings.TrimSpace(reaction))
 	debug.Print("Reacting to", eventID, "in", view.Room.ID, "with", reaction)
 	eventID, err := view.parent.matrix.SendEvent(&muksevt.Event{
 		Event: &event.Event{

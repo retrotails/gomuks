@@ -9,7 +9,7 @@ require (
 	github.com/kyokomi/emoji/v2 v2.2.9
 	github.com/lithammer/fuzzysearch v1.1.3
 	github.com/lucasb-eyer/go-colorful v1.2.0
-	github.com/mattn/go-runewidth v0.0.13
+	github.com/mattn/go-runewidth v0.0.14-0.20220323023645-f9d555329d96
 	github.com/mattn/go-sqlite3 v1.14.12
 	github.com/rivo/uniseg v0.2.0
 	github.com/sasha-s/go-deadlock v0.3.1
@@ -17,14 +17,14 @@ require (
 	github.com/zyedidia/clipboard v1.0.3
 	go.etcd.io/bbolt v1.3.6
 	go.mau.fi/cbind v0.0.0-20220415094356-e1d579b7925e
-	go.mau.fi/mauview v0.1.4-0.20220416164650-aac1ebd3a472
-	go.mau.fi/tcell v0.0.0-20220416164612-f5dbb33f6c9c
+	go.mau.fi/mauview v0.1.4-0.20220424212347-bfa59b8f6ad0
+	go.mau.fi/tcell v0.0.0-20220417202829-9f14d62226c5
 	golang.org/x/image v0.0.0-20220413100746-70e8d0d3baa9
 	golang.org/x/net v0.0.0-20220412020605-290c469a71a5
 	gopkg.in/toast.v1 v1.0.0-20180812000517-0a84660828b2
 	gopkg.in/vansante/go-ffprobe.v2 v2.0.3
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
-	maunium.net/go/mautrix v0.10.13-0.20220415172627-597a9560f721
+	maunium.net/go/mautrix v0.10.13-0.20220417095934-0eee489b6417
 	mvdan.cc/xurls/v2 v2.4.0
 )
 
@@ -46,3 +46,5 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	maunium.net/go/maulogger/v2 v2.3.2 // indirect
 )
+
+replace github.com/mattn/go-runewidth => github.com/tulir/go-runewidth v0.0.14-0.20220424205441-e6266a230669

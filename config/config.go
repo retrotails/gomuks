@@ -117,6 +117,8 @@ type Config struct {
 	Backspace1RemovesWord bool `yaml:"backspace1_removes_word"`
 	Backspace2RemovesWord bool `yaml:"backspace2_removes_word"`
 
+	AlwaysClearScreen bool `yaml:"always_clear_screen"`
+
 	Dir          string `yaml:"-"`
 	DataDir      string `yaml:"data_dir"`
 	CacheDir     string `yaml:"cache_dir"`
@@ -153,6 +155,7 @@ func NewConfig(configDir, dataDir, cacheDir, downloadDir string) *Config {
 		NotifySound:           true,
 		SendToVerifiedOnly:    false,
 		Backspace1RemovesWord: true,
+		AlwaysClearScreen:     true,
 	}
 }
 

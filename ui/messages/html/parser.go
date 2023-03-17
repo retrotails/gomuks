@@ -79,7 +79,7 @@ func AdjustStyleBackgroundColor(color tcell.Color) AdjustStyleFunc {
 
 func AdjustStyleLink(url, id string) AdjustStyleFunc {
 	return func(style tcell.Style) tcell.Style {
-		return style.Hyperlink(url, id)
+		return style.Url(url).UrlId(id)
 	}
 }
 
@@ -292,7 +292,7 @@ func tokenToTextEntity(style *chroma.Style, token *chroma.Token) *TextEntity {
 func (parser *htmlParser) syntaxHighlight(text, language string) Entity {
 	lexer := lexers.Get(strings.ToLower(language))
 	if lexer == nil {
-		return nil
+		lexer = lexers.Get("plaintext")
 	}
 	iter, err := lexer.Tokenise(nil, text)
 	if err != nil {
@@ -305,27 +305,21 @@ func (parser *htmlParser) syntaxHighlight(text, language string) Entity {
 
 	var children []Entity
 	for _, token := range tokens {
-		if token.Value == "\n" {
-			children = append(children, NewBreakEntity())
+		lines := strings.SplitAfter(token.Value, "\n")
+		for _, line := range lines {
+			line_len := len(line)
+			if line_len == 0 {
+				continue
+			}
+			t := token.Clone()
 
-		} else if token.Type.String() == "CommentSingle" {
-			children = append(children, tokenToTextEntity(style, &token))
-			children = append(children, NewBreakEntity())
-
-		} else if token.Type.String() == "CommentMultiline" {
-			lines := strings.Split(token.Value, "\n")
-			for i, line := range lines {
-				t := token.Clone()
+			if line[line_len-1:] == "\n" {
+				t.Value = line[:line_len-1]
+				children = append(children, tokenToTextEntity(style, &t), NewBreakEntity())
+			} else {
 				t.Value = line
 				children = append(children, tokenToTextEntity(style, &t))
-
-				if i < len(lines)-1 {
-					children = append(children, NewBreakEntity())
-				}
 			}
-
-		} else {
-			children = append(children, tokenToTextEntity(style, &token))
 		}
 	}
 
@@ -388,16 +382,46 @@ func (parser *htmlParser) tagNodeToEntity(node *html.Node) Entity {
 
 var spaces = regexp.MustCompile("\\s+")
 
+// textToHTMLEntity converts a plain text string into an HTML Entity while preserving newlines.
+func textToHTMLEntity(text string) Entity {
+	if strings.Index(text, "\n") == -1 {
+		return NewTextEntity(text)
+	}
+	return &ContainerEntity{
+		BaseEntity: &BaseEntity{Tag: "span"},
+		Children:   textToHTMLEntities(text),
+	}
+}
+
+func textToHTMLEntities(text string) []Entity {
+	lines := strings.SplitAfter(text, "\n")
+	entities := make([]Entity, 0, len(lines))
+	for _, line := range lines {
+		line_len := len(line)
+		if line_len == 0 {
+			continue
+		}
+		if line == "\n" {
+			entities = append(entities, NewBreakEntity())
+		} else if line[line_len-1:] == "\n" {
+			entities = append(entities, NewTextEntity(line[:line_len-1]), NewBreakEntity())
+		} else {
+			entities = append(entities, NewTextEntity(line))
+		}
+	}
+	return entities
+}
+
 func TextToEntity(text string, eventID id.EventID, linkify bool) Entity {
 	if len(text) == 0 {
 		return nil
 	}
 	if !linkify {
-		return NewTextEntity(text)
+		return textToHTMLEntity(text)
 	}
 	indices := xurls.Strict().FindAllStringIndex(text, -1)
 	if len(indices) == 0 {
-		return NewTextEntity(text)
+		return textToHTMLEntity(text)
 	}
 	ent := &ContainerEntity{
 		BaseEntity: &BaseEntity{Tag: "span"},
@@ -406,7 +430,7 @@ func TextToEntity(text string, eventID id.EventID, linkify bool) Entity {
 	for i, item := range indices {
 		start, end := item[0], item[1]
 		if start > lastEnd {
-			ent.Children = append(ent.Children, NewTextEntity(text[lastEnd:start]))
+			ent.Children = append(ent.Children, textToHTMLEntities(text[lastEnd:start])...)
 		}
 		link := text[start:end]
 		linkID := fmt.Sprintf("%s-%d", eventID, i)
@@ -414,7 +438,7 @@ func TextToEntity(text string, eventID id.EventID, linkify bool) Entity {
 		lastEnd = end
 	}
 	if lastEnd < len(text) {
-		ent.Children = append(ent.Children, NewTextEntity(text[lastEnd:]))
+		ent.Children = append(ent.Children, textToHTMLEntities(text[lastEnd:])...)
 	}
 	return ent
 }

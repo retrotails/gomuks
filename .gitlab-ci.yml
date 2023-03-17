@@ -16,7 +16,7 @@ cache:
   before_script:
   - export GO_LDFLAGS="-s -w -linkmode external -extldflags -static -X main.Tag=$CI_COMMIT_TAG -X main.Commit=$CI_COMMIT_SHA -X 'main.BuildTime=`date '+%b %_d %Y, %H:%M:%S'`'"
   script:
-  - go build -o gomuks
+  - go build -ldflags "$GO_LDFLAGS" -o gomuks
   artifacts:
     paths:
     - gomuks
@@ -31,7 +31,9 @@ linux/arm:
 
 linux/arm64:
   <<: *build-linux
-  image: dock.mau.dev/tulir/gomuks-build-docker:linux-arm64
+  image: dock.mau.dev/tulir/gomuks-build-docker:linux-arm64-native
+  tags:
+  - arm64
 
 windows/amd64:
   image: dock.mau.dev/tulir/gomuks-build-docker:windows-amd64
@@ -51,7 +53,7 @@ macos/amd64:
   - export GO_LDFLAGS="-X main.Tag=$CI_COMMIT_TAG -X main.Commit=$CI_COMMIT_SHA -X 'main.BuildTime=`date '+%b %_d %Y, %H:%M:%S'`'"
   script:
   - mkdir gomuks-macos-amd64
-  - go build -o gomuks-macos-amd64/gomuks
+  - go build -ldflags "$GO_LDFLAGS" -o gomuks-macos-amd64/gomuks
   - install_name_tool -change /usr/local/opt/libolm/lib/libolm.3.dylib @rpath/libolm.3.dylib gomuks-macos-amd64/gomuks
   - install_name_tool -add_rpath @executable_path gomuks-macos-amd64/gomuks
   - install_name_tool -add_rpath /usr/local/opt/libolm/lib gomuks-macos-amd64/gomuks
@@ -72,7 +74,7 @@ macos/arm64:
   - export GO_LDFLAGS="-X main.Tag=$CI_COMMIT_TAG -X main.Commit=$CI_COMMIT_SHA -X 'main.BuildTime=`date '+%b %_d %Y, %H:%M:%S'`'"
   script:
   - mkdir gomuks-macos-arm64
-  - go build -o gomuks-macos-arm64/gomuks
+  - go build -ldflags "$GO_LDFLAGS" -o gomuks-macos-arm64/gomuks
   - install_name_tool -change /opt/homebrew/opt/libolm/lib/libolm.3.dylib @rpath/libolm.3.dylib gomuks-macos-arm64/gomuks
   - install_name_tool -add_rpath @executable_path gomuks-macos-arm64/gomuks
   - install_name_tool -add_rpath /opt/homebrew/opt/libolm/lib gomuks-macos-arm64/gomuks

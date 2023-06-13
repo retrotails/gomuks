@@ -50,7 +50,10 @@ type Command struct {
 type CommandAutocomplete Command
 
 func (cmd *Command) Reply(message string, args ...interface{}) {
-	cmd.Room.AddServiceMessage(fmt.Sprintf(message, args...))
+	if len(args) > 0 {
+		message = fmt.Sprintf(message, args...)
+	}
+	cmd.Room.AddServiceMessage(message)
 	cmd.UI.Render()
 }
 
@@ -108,6 +111,8 @@ func NewCommandProcessor(parent *MainView) *CommandProcessor {
 			"4s":         {"ssss"},
 			"s4":         {"ssss"},
 			"cs":         {"cross-signing"},
+			"power":      {"powerlevel"},
+			"pl":         {"powerlevel"},
 		},
 		autocompleters: map[string]CommandAutocompleter{
 			"devices":       autocompleteUser,
@@ -123,6 +128,7 @@ func NewCommandProcessor(parent *MainView) *CommandProcessor {
 			"export":        autocompleteFile,
 			"export-room":   autocompleteFile,
 			"toggle":        autocompleteToggle,
+			"powerlevel":    autocompletePowerLevel,
 		},
 		commands: map[string]CommandHandler{
 			"unknown-command": cmdUnknownCommand,
@@ -139,6 +145,7 @@ func NewCommandProcessor(parent *MainView) *CommandProcessor {
 			"kick":       cmdKick,
 			"ban":        cmdBan,
 			"unban":      cmdUnban,
+			"powerlevel": cmdPowerLevel,
 			"toggle":     cmdToggle,
 			"roomwidth":  cmdRoomWidth,
 			"logout":     cmdLogout,
